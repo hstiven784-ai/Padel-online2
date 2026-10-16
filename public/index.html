@@ -11,75 +11,103 @@ main{max-width:420px;margin:0 auto;padding:12px}
 .card{background:var(--card);border-radius:14px;padding:14px;margin:10px 0}
 button{background:var(--ac);color:#fff;border:0;border-radius:10px;padding:12px 16px;font-size:1rem;margin:4px}
 button.alt{background:transparent;color:var(--fg);border:1px solid var(--mut)}
-input{padding:11px;border-radius:10px;border:1px solid var(--mut);background:var(--bg);color:var(--fg);font-size:1rem;width:7.5em;text-transform:uppercase;text-align:center}
+button.em{background:var(--card);padding:6px 10px;font-size:1.3rem}
+input,select{padding:11px;border-radius:10px;border:1px solid var(--mut);background:var(--bg);color:var(--fg);font-size:1rem;margin:3px}
+#inp{width:7.5em;text-transform:uppercase;text-align:center}
 .code{font-size:2rem;letter-spacing:.2em;font-weight:700;color:var(--ac)}
 #qr{display:inline-block;background:#fff;padding:8px;border-radius:8px;margin:8px}
-#st{color:var(--mut);min-height:1.4em}
+#st,#tm{color:var(--mut);min-height:1.4em;font-size:.9rem}
 canvas{width:100%;max-width:360px;border-radius:12px;touch-action:none;display:block;margin:8px auto}
 .hide{display:none}
 </style></head><body><main>
 <h1>🎾 Pádel Online</h1>
 <div id="lobby">
- <div class="card"><button id="bCrear">Crear partida online</button>
+ <div class="card"><input id="nom" maxlength="12" placeholder="Tu nombre"></div>
+ <div class="card"><select id="mode"><option value="2">1 contra 1</option><option value="4">Dobles 2 contra 2</option></select>
+  <button id="bCrear">Crear partida online</button>
   <div id="host" class="hide"><div class="code" id="cod"></div><div id="qr"></div>
-  <p style="color:var(--mut);font-size:.85rem">Tu rival escanea el QR o escribe el código.</p></div></div>
+  <p style="color:var(--mut);font-size:.85rem">Tus rivales y compañeros escanean el QR o escriben el código.</p></div></div>
  <div class="card"><input id="inp" maxlength="4" placeholder="CÓDIGO"><button id="bUnir">Unirme</button></div>
- <div class="card"><button class="alt" id="bBot">Jugar solo vs bot</button></div>
+ <div class="card"><select id="lvl"><option value="80">Bot fácil</option><option value="130" selected>Bot medio</option><option value="200">Bot difícil</option></select>
+  <button class="alt" id="bBot">Jugar solo</button></div>
 </div>
 <div id="st">Elige cómo jugar</div>
 <canvas id="cv" class="hide" width="300" height="450"></canvas>
+<div id="tm"></div>
+<div id="ems" class="hide"><button class="em">👏</button><button class="em">🔥</button><button class="em">😅</button><button class="em">😎</button></div>
 <div id="end" class="hide"><button id="bAgain">Revancha</button><button class="alt" id="bMenu">Salir</button></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="game.js"></script>
 <script>
 const {W,H,PW,PH,R}=Padel,$=id=>document.getElementById(id),cv=$('cv'),cx=cv.getContext('2d');
-let ws=null,mode=null,side=1,S=Padel.create(),meX=W/2,last=0,lastTx=0,running=false;
-const status=t=>$('st').textContent=t;
+let ws=null,mode='',side=1,idx=0,S=Padel.create(),meX=W/2,last=0,lastTx=0,running=false,botSp=130,pv={vx:0,vy:0,sA:0,sB:0},ems=[],wins=[0,0];
+try{$('nom').value=localStorage.padelName||''}catch(_){}
+const name=()=>{const n=$('nom').value.trim()||'Jugador';try{localStorage.padelName=n}catch(_){}return n};
+const status=t=>$('st').textContent=t,tx=o=>ws&&ws.readyState===1&&ws.send(JSON.stringify(o));
+let ac=null;
+function beep(f,d,v=.15){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator(),g=ac.createGain();
+  o.frequency.value=f;g.gain.value=v;g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+d)}catch(_){}}
+const vib=n=>{try{navigator.vibrate&&navigator.vibrate(n)}catch(_){}};
+function track(){
+  if(S.sA!==pv.sA||S.sB!==pv.sB){beep(220,.35);vib(120)}
+  else if(Math.sign(S.vy)!==Math.sign(pv.vy)&&S.vy&&pv.vy){(S.by<40||S.by>H-40)?beep(900,.12,.2):beep(660,.08);vib(25)}
+  else if(Math.sign(S.vx)!==Math.sign(pv.vx)&&S.vx&&pv.vx)beep(440,.05,.08);
+  pv={vx:S.vx,vy:S.vy,sA:S.sA,sB:S.sB};
+}
 function connect(cb){
   ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);
-  ws.onopen=cb;
-  ws.onerror=()=>status('Sin conexión con el servidor');
-  ws.onclose=()=>{if(mode==='online'&&running)status('Conexión perdida')};
+  ws.onopen=cb;ws.onerror=()=>status('Sin conexión con el servidor');
   ws.onmessage=e=>{
     const m=JSON.parse(e.data);
     if(m.t==='room'){$('cod').textContent=m.code;$('host').classList.remove('hide');
       $('qr').innerHTML='';const url=location.origin+location.pathname+'?c='+m.code;
-      try{new QRCode($('qr'),{text:url,width:170,height:170})}catch(_){}status('Esperando rival…')}
-    else if(m.t==='start'){side=m.side;S=Padel.create();begin('online')}
-    else if(m.t==='s'){Object.assign(S,{bx:m.bx,by:m.by,vx:m.vx,vy:m.vy,p1:m.p1,p2:m.p2,s1:m.s1,s2:m.s2,wait:m.wait,over:m.over});$('end').classList.toggle('hide',!m.over)}
+      try{new QRCode($('qr'),{text:url,width:170,height:170})}catch(_){}}
+    else if(m.t==='wait')status('Esperando jugadores '+m.n+'/'+m.mode+'…');
+    else if(m.t==='start'){side=m.side;idx=m.idx;S=Padel.create();wins=[0,0];
+      $('tm').textContent=m.names.map((n,i)=>(i%2?'🟡 ':'🟠 ')+n).join(' · ');begin('online')}
+    else if(m.t==='s'){Object.assign(S,m);wins=m.w;$('end').classList.toggle('hide',!m.over)}
+    else if(m.t==='e')ems.push({e:m.e,x:60+Math.random()*180,t:performance.now()});
     else if(m.t==='err')status(m.msg);
-    else if(m.t==='left'){running=false;status('Tu rival se fue');$('end').classList.remove('hide');$('bAgain').classList.add('hide')}
+    else if(m.t==='left'){running=false;status('Alguien se fue. Partida terminada.');$('end').classList.remove('hide');$('bAgain').classList.add('hide')}
   };
 }
 function begin(md){
-  mode=md;running=true;$('lobby').classList.add('hide');cv.classList.remove('hide');
+  mode=md;running=true;$('lobby').classList.add('hide');cv.classList.remove('hide');$('ems').classList.remove('hide');
   $('bAgain').classList.remove('hide');$('end').classList.add('hide');
-  status(md==='solo'?'Solo vs bot · gana el primero a 7':'¡Rival conectado! Gana el primero a 7');
-  last=performance.now();requestAnimationFrame(loop);
+  pv={vx:0,vy:0,sA:0,sB:0};last=performance.now();status('Si la pelota rebota en tu cristal del fondo, ¡devuélvela antes de que se te escape! Gana el primero a 7');requestAnimationFrame(loop);
 }
 function loop(now){
   if(!running)return;
   const dt=Math.min((now-last)/1000,.05);last=now;
-  if(mode==='solo'){S.p1=meX;Padel.step(S,dt,true);$('end').classList.toggle('hide',!S.over)}
+  if(mode==='solo'){S.A[0]=meX;Padel.step(S,dt,botSp);$('end').classList.toggle('hide',!S.over)}
   else{
-    if(S.wait<=0&&!S.over){S.bx+=S.vx*dt;S.by+=S.vy*dt}
-    if(now-lastTx>33&&ws&&ws.readyState===1){lastTx=now;ws.send(JSON.stringify({t:'p',x:meX}))}
+    if(S.wait<=0&&!S.over){S.bx+=S.vx*dt;S.by=Math.max(0,Math.min(H,S.by+S.vy*dt))}
+    if(now-lastTx>33){lastTx=now;tx({t:'p',x:meX})}
   }
-  draw();requestAnimationFrame(loop);
+  track();draw(now);requestAnimationFrame(loop);
 }
-function draw(){
+function draw(now){
   const f=mode==='online'&&side===2,X=x=>f?W-x:x,Y=y=>f?H-y:y;
-  const c=getComputedStyle(document.documentElement).getPropertyValue('--court');
-  cx.fillStyle=c;cx.fillRect(0,0,W,H);cx.strokeStyle='#fff';cx.lineWidth=2;cx.strokeRect(2,2,W-4,H-4);
+  cx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--court');cx.fillRect(0,0,W,H);
+  cx.strokeStyle='#fff';cx.lineWidth=2;cx.strokeRect(2,2,W-4,H-4);cx.fillStyle='rgba(255,255,255,.18)';cx.fillRect(0,0,W,8);cx.fillRect(0,H-8,W,8);
   cx.beginPath();cx.moveTo(W/2,H/2-110);cx.lineTo(W/2,H/2+110);cx.stroke();
   cx.setLineDash([4,5]);cx.beginPath();cx.moveTo(0,H/2);cx.lineTo(W,H/2);cx.stroke();cx.setLineDash([]);
-  const mine=f?S.p2:S.p1,opp=f?S.p1:S.p2;
-  cx.fillStyle='#ffd54f';cx.fillRect(X(opp)-PW/2,30-PH/2,PW,PH);
-  cx.fillStyle='#ff7043';cx.fillRect(X(meX)-PW/2,H-30-PH/2,PW,PH);
+  const myTeam=f?S.B:S.A;
+  for(const team of [S.A,S.B]){
+    const y=team===S.A?H-30:30;
+    team.forEach((x,i)=>{const own=team===myTeam&&i===idx&&mode!=='x';
+      const px=own?meX:x;
+      cx.fillStyle=team===myTeam?(own?'#ff7043':'#ffab91'):'#ffd54f';
+      cx.fillRect(X(px)-PW/2,Y(y)-PH/2,PW,PH)});
+  }
   cx.fillStyle='#e8f24a';cx.beginPath();cx.arc(X(S.bx),Y(S.by),R,0,7);cx.fill();
-  const my=f?S.s2:S.s1,op=f?S.s1:S.s2;
+  const my=f?S.sB:S.sA,op=f?S.sA:S.sB;
   cx.fillStyle='#fff';cx.font='bold 22px system-ui';cx.textAlign='left';cx.fillText(op,10,H/2-10);cx.fillText(my,10,H/2+28);
   cx.textAlign='center';
+  if(mode==='online'){cx.font='12px system-ui';cx.fillText('Victorias '+(f?wins[1]:wins[0])+' - '+(f?wins[0]:wins[1]),W-55,H/2+4)}
+  ems=ems.filter(m=>now-m.t<1600);
+  ems.forEach(m=>{cx.font='28px system-ui';cx.fillText(m.e,m.x,H/2-(now-m.t)/12)});
+  cx.font='bold 22px system-ui';
   if(S.over){cx.fillStyle='#000a';cx.fillRect(0,H/2-40,W,80);cx.fillStyle='#fff';cx.fillText(my>op?'¡Ganaste! 🏆':'Perdiste 😅',W/2,H/2+8)}
   else if(S.wait>0){cx.font='16px system-ui';cx.fillText('¡Prepárate!',W/2,H/2-30)}
 }
@@ -89,11 +117,12 @@ function mv(e){
   meX=Math.max(PW/2,Math.min(W-PW/2,x));
 }
 cv.addEventListener('pointermove',mv);cv.addEventListener('pointerdown',mv);
-$('bCrear').onclick=()=>{status('Conectando…');connect(()=>ws.send(JSON.stringify({t:'create'})))};
-const join=c=>{status('Conectando…');connect(()=>ws.send(JSON.stringify({t:'join',code:c})))};
+$('bCrear').onclick=()=>{status('Conectando…');connect(()=>tx({t:'create',mode:+$('mode').value,name:name()}))};
+const join=c=>{status('Conectando…');connect(()=>tx({t:'join',code:c,name:name()}))};
 $('bUnir').onclick=()=>{const c=$('inp').value.trim();c.length===4?join(c):status('Escribe el código de 4 letras')};
-$('bBot').onclick=()=>{S=Padel.create();begin('solo')};
-$('bAgain').onclick=()=>{if(mode==='solo'){S=Padel.create();$('end').classList.add('hide')}else ws.send(JSON.stringify({t:'again'}))};
+$('bBot').onclick=()=>{botSp=+$('lvl').value;S=Padel.create();side=1;idx=0;begin('solo')};
+$('bAgain').onclick=()=>{if(mode==='solo'){S=Padel.create();$('end').classList.add('hide')}else tx({t:'again'})};
 $('bMenu').onclick=()=>location.href=location.pathname;
-const q=new URLSearchParams(location.search).get('c');if(q&&q.length===4)join(q);
+$('ems').querySelectorAll('button').forEach(b=>b.onclick=()=>{if(mode==='online')tx({t:'e',e:b.textContent});else ems.push({e:b.textContent,x:150,t:performance.now()})});
+const q=new URLSearchParams(location.search).get('c');if(q&&q.length===4)$('inp').value=q.toUpperCase();
 </script></main></body></html>
