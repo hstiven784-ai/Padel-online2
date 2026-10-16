@@ -3,21 +3,23 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>Pádel Online</title>
 <style>
-:root{--bg:#f4f6f8;--fg:#14212b;--card:#fff;--ac:#1f7a4d;--mut:#5b6b77;--court:#2b6fb3}
-@media (prefers-color-scheme:dark){:root{--bg:#10171d;--fg:#e8eef3;--card:#1a242c;--ac:#3fb67c;--mut:#93a4b0;--court:#1d4f82}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif;text-align:center;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
-main{max-width:420px;margin:0 auto;padding:12px}
-.card{background:var(--card);border-radius:14px;padding:14px;margin:10px 0}
-button{background:var(--ac);color:#fff;border:0;border-radius:10px;padding:12px 16px;font-size:1rem;margin:4px}
-button.alt{background:transparent;color:var(--fg);border:1px solid var(--mut)}
-button.em{background:var(--card);padding:6px 10px;font-size:1.3rem}
-input,select{padding:11px;border-radius:10px;border:1px solid var(--mut);background:var(--bg);color:var(--fg);font-size:1rem;margin:3px}
-#inp{width:7.5em;text-transform:uppercase;text-align:center}
-.code{font-size:2rem;letter-spacing:.2em;font-weight:700;color:var(--ac)}
-#qr{display:inline-block;background:#fff;padding:8px;border-radius:8px;margin:8px}
-#st,#tm{color:var(--mut);min-height:1.4em;font-size:.9rem}
-canvas{width:100%;max-width:360px;border-radius:12px;touch-action:none;display:block;margin:8px auto}
+:root{--bg:#0b1622;--card:#14263a;--fg:#eaf2f8;--mut:#8fa6b8;--lime:#c6ff3d}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,sans-serif;text-align:center;min-height:100vh;
+background:radial-gradient(circle at 50% -10%,#1d4b7a 0,#0b1622 60%) fixed;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+main{max-width:420px;margin:0 auto;padding:14px}
+h1{font-size:1.7rem;margin:8px 0 12px;letter-spacing:.5px}
+.card{background:linear-gradient(160deg,#18304a,#112235);border:1px solid #ffffff14;border-radius:18px;padding:14px;margin:12px 0;box-shadow:0 8px 24px #0006}
+button{background:linear-gradient(135deg,#c6ff3d,#72d22a);color:#0b1b12;font-weight:700;border:0;border-radius:12px;padding:12px 18px;font-size:1rem;margin:4px;box-shadow:0 4px 14px #72d22a55;cursor:pointer}
+button:active{transform:scale(.97)}
+button.alt{background:transparent;color:var(--fg);border:1px solid #ffffff44;box-shadow:none}
+button.em{background:#ffffff14;box-shadow:none;padding:6px 12px;font-size:1.4rem;border-radius:50%}
+input,select{padding:12px;border-radius:12px;border:1px solid #ffffff2a;background:#0b1622;color:var(--fg);font-size:1rem;margin:4px;max-width:100%}
+#inp{width:7.5em;text-transform:uppercase;text-align:center;letter-spacing:.2em;font-weight:700}
+.code{font-size:2.2rem;letter-spacing:.25em;font-weight:800;color:var(--lime);text-shadow:0 0 18px #c6ff3d66}
+#qr{display:inline-block;background:#fff;padding:10px;border-radius:12px;margin:8px}
+#st,#tm{color:var(--mut);min-height:1.4em;font-size:.9rem;padding:0 8px}
+canvas{width:100%;max-width:360px;border-radius:18px;touch-action:none;display:block;margin:10px auto;box-shadow:0 12px 34px #000a;border:3px solid #ffffff33}
 .hide{display:none}
 </style></head><body><main>
 <h1>🎾 Pádel Online</h1>
@@ -40,6 +42,7 @@ canvas{width:100%;max-width:360px;border-radius:12px;touch-action:none;display:b
 <script src="game.js"></script>
 <script>
 const {W,H,PW,PH,R}=Padel,$=id=>document.getElementById(id),cv=$('cv'),cx=cv.getContext('2d');
+{const d=Math.min(window.devicePixelRatio||1,3);cv.width=W*d;cv.height=H*d;cx.setTransform(d,0,0,d,0,0)}
 let ws=null,mode='',side=1,idx=0,S=Padel.create(),meX=W/2,last=0,lastTx=0,running=false,botSp=130,pv={vx:0,vy:0,sA:0,sB:0},ems=[],wins=[0,0];
 try{$('nom').value=localStorage.padelName||''}catch(_){}
 const name=()=>{const n=$('nom').value.trim()||'Jugador';try{localStorage.padelName=n}catch(_){}return n};
@@ -86,30 +89,44 @@ function loop(now){
   }
   track();draw(now);requestAnimationFrame(loop);
 }
+let trail=[];
+function rr(x,y,w,h,r){cx.beginPath();cx.roundRect?cx.roundRect(x,y,w,h,r):cx.rect(x,y,w,h)}
 function draw(now){
   const f=mode==='online'&&side===2,X=x=>f?W-x:x,Y=y=>f?H-y:y;
-  cx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--court');cx.fillRect(0,0,W,H);
-  cx.strokeStyle='#fff';cx.lineWidth=2;cx.strokeRect(2,2,W-4,H-4);cx.fillStyle='rgba(255,255,255,.18)';cx.fillRect(0,0,W,8);cx.fillRect(0,H-8,W,8);
-  cx.beginPath();cx.moveTo(W/2,H/2-110);cx.lineTo(W/2,H/2+110);cx.stroke();
-  cx.setLineDash([4,5]);cx.beginPath();cx.moveTo(0,H/2);cx.lineTo(W,H/2);cx.stroke();cx.setLineDash([]);
+  const my=f?S.sB:S.sA,op=f?S.sA:S.sB;
+  let g=cx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#1a5a9e');g.addColorStop(.5,'#2a82d6');g.addColorStop(1,'#1a5a9e');
+  cx.fillStyle=g;cx.fillRect(0,0,W,H);
+  cx.strokeStyle='rgba(255,255,255,.85)';cx.lineWidth=2;cx.strokeRect(12,16,W-24,H-32);
+  cx.beginPath();cx.moveTo(12,H/2-90);cx.lineTo(W-12,H/2-90);cx.moveTo(12,H/2+90);cx.lineTo(W-12,H/2+90);cx.moveTo(W/2,H/2-90);cx.lineTo(W/2,H/2+90);cx.stroke();
+  cx.fillStyle='rgba(255,255,255,.11)';cx.font='bold 120px system-ui';cx.textAlign='center';
+  cx.fillText(op,W/2,H/2-55);cx.fillText(my,W/2,H/2+150);
+  cx.fillStyle='rgba(0,0,0,.3)';cx.fillRect(0,H/2,W,6);cx.fillStyle='#eef3f7';cx.fillRect(0,H/2-3,W,3);
+  g=cx.createLinearGradient(0,0,0,12);g.addColorStop(0,'rgba(255,255,255,.5)');g.addColorStop(1,'rgba(255,255,255,.05)');
+  cx.fillStyle=g;cx.fillRect(0,0,W,12);cx.save();cx.translate(0,H);cx.scale(1,-1);cx.fillRect(0,0,W,12);cx.restore();
+  cx.fillStyle='rgba(255,255,255,.14)';cx.fillRect(0,0,4,H);cx.fillRect(W-4,0,4,H);
   const myTeam=f?S.B:S.A;
   for(const team of [S.A,S.B]){
     const y=team===S.A?H-30:30;
-    team.forEach((x,i)=>{const own=team===myTeam&&i===idx&&mode!=='x';
-      const px=own?meX:x;
-      cx.fillStyle=team===myTeam?(own?'#ff7043':'#ffab91'):'#ffd54f';
-      cx.fillRect(X(px)-PW/2,Y(y)-PH/2,PW,PH)});
+    team.forEach((x,i)=>{const own=team===myTeam&&i===idx;
+      const px=own?meX:x,c=team===myTeam?(own?'#ff8a3d':'#ffc9a3'):'#ffe066';
+      cx.save();cx.shadowColor=own?'#ff8a3d':'#0006';cx.shadowBlur=own?14:6;cx.shadowOffsetY=2;
+      rr(X(px)-PW/2,Y(y)-PH/2-1,PW,PH+2,6);cx.fillStyle=c;cx.fill();cx.restore();
+      cx.fillStyle='rgba(255,255,255,.55)';cx.fillRect(X(px)-PW/2+6,Y(y)-PH/2+1,PW-12,2)});
   }
-  cx.fillStyle='#e8f24a';cx.beginPath();cx.arc(X(S.bx),Y(S.by),R,0,7);cx.fill();
-  const my=f?S.sB:S.sA,op=f?S.sA:S.sB;
-  cx.fillStyle='#fff';cx.font='bold 22px system-ui';cx.textAlign='left';cx.fillText(op,10,H/2-10);cx.fillText(my,10,H/2+28);
+  if(S.wait<=0&&!S.over){trail.push([X(S.bx),Y(S.by)]);if(trail.length>9)trail.shift()}else trail=[];
+  trail.forEach((p,i)=>{cx.fillStyle='rgba(198,255,61,'+(i/trail.length*.3)+')';cx.beginPath();cx.arc(p[0],p[1],R*(.4+i/trail.length*.5),0,7);cx.fill()});
+  cx.save();cx.shadowColor='#c6ff3d';cx.shadowBlur=14;
+  g=cx.createRadialGradient(X(S.bx)-2,Y(S.by)-2,1,X(S.bx),Y(S.by),R);g.addColorStop(0,'#f4ffb0');g.addColorStop(1,'#b6f021');
+  cx.fillStyle=g;cx.beginPath();cx.arc(X(S.bx),Y(S.by),R,0,7);cx.fill();cx.restore();
   cx.textAlign='center';
-  if(mode==='online'){cx.font='12px system-ui';cx.fillText('Victorias '+(f?wins[1]:wins[0])+' - '+(f?wins[0]:wins[1]),W-55,H/2+4)}
+  if(mode==='online'){cx.fillStyle='rgba(255,255,255,.85)';cx.font='12px system-ui';cx.fillText('Victorias '+(f?wins[1]:wins[0])+' - '+(f?wins[0]:wins[1]),W/2,H/2+24)}
   ems=ems.filter(m=>now-m.t<1600);
-  ems.forEach(m=>{cx.font='28px system-ui';cx.fillText(m.e,m.x,H/2-(now-m.t)/12)});
-  cx.font='bold 22px system-ui';
-  if(S.over){cx.fillStyle='#000a';cx.fillRect(0,H/2-40,W,80);cx.fillStyle='#fff';cx.fillText(my>op?'¡Ganaste! 🏆':'Perdiste 😅',W/2,H/2+8)}
-  else if(S.wait>0){cx.font='16px system-ui';cx.fillText('¡Prepárate!',W/2,H/2-30)}
+  ems.forEach(m=>{cx.font='30px system-ui';cx.fillText(m.e,m.x,H/2-(now-m.t)/12)});
+  if(S.over||S.wait>0){
+    cx.fillStyle='rgba(6,14,22,.72)';rr(30,H/2-46,W-60,92,16);cx.fill();cx.fillStyle='#fff';
+    if(S.over){cx.font='bold 26px system-ui';cx.fillText(my>op?'¡Ganaste! 🏆':'Perdiste 😅',W/2,H/2+9)}
+    else{cx.font='bold 20px system-ui';cx.fillText('¡Prepárate!',W/2,H/2+7)}
+  }
 }
 function mv(e){
   const r=cv.getBoundingClientRect();let x=(e.clientX-r.left)/r.width*W;
