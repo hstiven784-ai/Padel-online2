@@ -1,5 +1,5 @@
 (function(root){
-const W=300,H=450,PW=64,PH=10,R=7,WIN=7,cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+const W=300,H=450,PW=64,PH=10,R=7,WIN=3,cl=(v,a,b)=>Math.max(a,Math.min(b,v));
 function create(){return{bx:W/2,by:H/2,vx:0,vy:0,A:[W/2,W/2],B:[W/2,W/2],sA:0,sB:0,wait:1,over:false,dir:1,bw:0}}
 function serve(S){S.bx=W/2;S.by=H/2;S.vx=(Math.random()-.5)*120;S.vy=170*S.dir}
 function hit(S,px,dir){S.bw=0;
